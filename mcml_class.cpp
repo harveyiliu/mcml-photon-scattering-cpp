@@ -10,11 +10,11 @@
 
 void Medium::SelectMedium (Medium::MediumName mediumName) {
   switch (mediumName) {
-    case Medium::TYPE_II_EPIDERMIS:
-      n = 1.3;
-      mua = 5.0;
-      mus = 200.0;
-      g = 0.70;
+    case Medium::AIR:
+      n = 1.0;
+      mua = 0.0;
+      mus = 0.0;
+      g = 0.0;
       break;
     case Medium::DERMIS:
       n = 1.4;
@@ -22,6 +22,12 @@ void Medium::SelectMedium (Medium::MediumName mediumName) {
       mus = 137.0;
       g = 0.90;
       break;
+    case Medium::TYPE_II_EPIDERMIS:
+      n = 1.3;
+      mua = 5.0;
+      mus = 200.0;
+      g = 0.70;
+      break;    
     default:
       n = 1.4;
       mua = 0.26;
@@ -37,71 +43,59 @@ void LayerStruct::SelectLayerStruct (LayerStruct::LayerName layerName) {
   
   this->FreeLayerStruct();    // free previously set array members if needed
   switch (layerName) {
-    case LayerStruct::TYPE_II_SKIN:
-      nIn = 1.0;      // incidence medium index
-      nOut = 1.4;     // exit medium index
-      numLayers = 2;  // number of layers
-      layer = new Medium [numLayers];
-      layer[0].SelectMedium(Medium::TYPE_II_EPIDERMIS);
+    case LayerStruct::BARE_DERMIS:
+      numLayers = 1;
+      layer = new Medium [numLayers+2];
+      layer[0].SelectMedium(Medium::AIR);
       layer[1].SelectMedium(Medium::DERMIS);
+      layer[2].SelectMedium(Medium::DERMIS);
+      layerThickness = new double [numLayers];
+      layerThickness[0] = 0.3;
+      break; 
+    case LayerStruct::TYPE_II_SKIN:
+      numLayers = 2;  // number of layers
+      layer = new Medium [numLayers+2];
+      layer[0].SelectMedium(Medium::AIR);     // incidence medium
+      layer[1].SelectMedium(Medium::TYPE_II_EPIDERMIS);
+      layer[2].SelectMedium(Medium::DERMIS);
+      layer[3].SelectMedium(Medium::DERMIS);  //exit medium
       layerThickness = new double [numLayers];
       layerThickness[0] = 0.006;
       layerThickness[1] = 0.3;
       break;
-
-    case LayerStruct::BARE_DERMIS:
-      nIn = 1.0;
-      nOut = 1.4;
-      numLayers = 1;
-      layer = new Medium [numLayers];
-      layer[0].SelectMedium(Medium::DERMIS);
-      layerThickness = new double [numLayers];
-      layerThickness[0] = 0.3;
-      break;
-
     default:
-      nIn = 1.0;
-      nOut = 1.4;
       numLayers = 1;
-      layer = new Medium [numLayers];
-      layer[0].SelectMedium(Medium::DERMIS);
+      layer = new Medium [numLayers+2];
+      layer[0].SelectMedium(Medium::AIR);
+      layer[1].SelectMedium(Medium::DERMIS);
+      layer[2].SelectMedium(Medium::DERMIS);
       layerThickness = new double [numLayers];
       layerThickness[0] = 0.3;     
   }
-  layerZ[0] = new double [numLayers];
-  layerZ[1] = new double [numLayers];
-  cosCrit[0] = new double [numLayers];
-  cosCrit[1] = new double [numLayers];
+  layerZ[0] = new double [numLayers+2];   // include the incidence and exit
+  layerZ[1] = new double [numLayers+2];
+  cosCrit[0] = new double [numLayers+2];
+  cosCrit[1] = new double [numLayers+2];
   int z = 0;
   double n1, n2;
-  for (int i=0; i < numLayers; i++) {
+  for (int i=1; i <= numLayers; i++) {
     layerZ[0][i] = z;
     layerZ[1][i] = z + layerThickness[i];
     z = layerZ[1][i];
     // calculate the critical angle cosines for each layer
     // crticial angle at top interface of the current layer
     n1 = layer[i].n;
-    if (i == 0) {
-      n2 = nIn;
-    } else {
-      n2 = layer[i-1].n;
-    }
-    if (n1 > n2) {
+    n2 = layer[i-1].n;
+    if (n1 > n2)
       cosCrit[0][i] = sqrt(1.0 - n2*n2/(n1*n1));
-    } else {
+    else
       cosCrit[0][i] = 0.0;
-    }
     // crticial angle at bottom interface of the current layer
-    if ((i+1) == numLayers) {
-      n2 = nOut;
-    } else {
-      n2 = layer[i+1].n;
-    }
-    if (n1 > n2) {
+    n2 = layer[i+1].n;
+    if (n1 > n2)
       cosCrit[1][i] = sqrt(1.0 - n2*n2/(n1*n1));
-    } else {
+    else
       cosCrit[1][i] = 0.0;
-    }
   }
 }
 
@@ -144,9 +138,9 @@ Photon::Photon (LayerStruct layerObj, double rSpecular) {
   sleft = 0;
   
   // take care of the case when the first layer is glass
-  if ((layerObj.layer[0].mua == 0) && (layerObj.layer[0].mus == 0)) {
-    layer = 1;      // skip to next layer
-    z = layerObj.layerZ[0][1];  // use z0 from the next layer
+  if ((layerObj.layer[1].mua == 0.0) && (layerObj.layer[1].mus == 0.0)) {
+    layer = 2;      // skip to next layer
+    z = layerObj.layerZ[0][2];  // use z0 from the next layer
   }
 }
 
@@ -156,6 +150,14 @@ void ModelInput::SelectModelInput (ModelInput::ModelInputName modelInputName,
   
   this->FreeModelInput();
   switch (modelInputName) {
+    case LayerStruct::BARE_DERMIS:
+      dz = 100e-4;
+      dr = 100e-4;
+      nz = 30;
+      nr = 50;
+      na = 10;
+      layerObj.SelectLayerStruct(LayerStruct::BARE_DERMIS);
+      break;   
     case LayerStruct::TYPE_II_SKIN:
       dz = 20e-4;
       dr = 20e-4;
@@ -164,16 +166,6 @@ void ModelInput::SelectModelInput (ModelInput::ModelInputName modelInputName,
       na = 10;
       layerObj.SelectLayerStruct(LayerStruct::TYPE_II_SKIN);
       break;
-    
-    case LayerStruct::BARE_DERMIS:
-      dz = 100e-4;
-      dr = 100e-4;
-      nz = 30;
-      nr = 50;
-      na = 10;
-      layerObj.SelectLayerStruct(LayerStruct::BARE_DERMIS);
-      break;
-
     default:
       dz = 100e-4;
       dr = 100e-4;

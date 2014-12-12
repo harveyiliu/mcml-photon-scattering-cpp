@@ -96,8 +96,9 @@ class Medium {
     double g;		    /* anisotropy. */
   public:
     enum MediumName {
-        TYPE_II_EPIDERMIS,
-        DERMIS
+        AIR,
+        DERMIS,
+        TYPE_II_EPIDERMIS
     };
     void SelectMedium (Medium::MediumName mediumName = Medium::DERMIS);    
 };
@@ -133,18 +134,18 @@ class LayerStruct {
   friend class ModelInput;
   friend class MCMLModel;
   private:
-    double nIn;   /* refractive index of the incidence medium */
-    double nOut;  /* refractive index of the exit medium */
     short	numLayers;			/* number of layers */
-    Medium * layer;     /* layer medium list */
-    double * layerThickness;  /* layer thickness array [cm] */
+    Medium * layer;     /* layer medium list, 1st layer is incidence medium
+                          last layer is the exit medium */
+    double * layerThickness;  /* layer thickness array [cm], not include
+                          the incidence and exit media */
     double * layerZ[2];	  /* layer z coordinates, top and bottom [cm] */
     double * cosCrit[2];  /* layer ciritical angle cosines, top and bottom */
 
   public:  
     enum LayerName {
-        TYPE_II_SKIN,
-        BARE_DERMIS
+        BARE_DERMIS,
+        TYPE_II_SKIN
     };
     LayerStruct() : layer (NULL), layerThickness (NULL) {
         layerZ[0] = NULL;
@@ -242,8 +243,8 @@ class ModelInput {
     LayerStruct layerObj;	  /* layer class object with parameters. */
 
     enum ModelInputName {
-        TYPE_II_SKIN,
-        BARE_DERMIS
+        BARE_DERMIS,
+        TYPE_II_SKIN
     };
     void SelectModelInput (ModelInput::ModelInputName modelInputName =
       ModelInput::BARE_DERMIS, long numPhotonsSet = 1000);
