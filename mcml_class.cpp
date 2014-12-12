@@ -107,25 +107,25 @@ void LayerStruct::SelectLayerStruct (LayerStruct::LayerName layerName) {
 
 
 void LayerStruct::FreeLayerStruct () {
-  if (layer != nullptr) {
+  if (layer != NULL) {
     delete[] layer;
-    layer = nullptr;
+    layer = NULL;
   }
-  if (layerThickness != nullptr) {
+  if (layerThickness != NULL) {
     delete[] layerThickness;
-    layerThickness = nullptr;
+    layerThickness = NULL;
   }
-  if (layerZ[0] != nullptr) {
+  if (layerZ[0] != NULL) {
     delete[] layerZ[0];
-    layerZ[0] = nullptr;
+    layerZ[0] = NULL;
     delete[] layerZ[1];
-    layerZ[1] = nullptr;
+    layerZ[1] = NULL;
   }
-  if (cosCrit[0] != nullptr) {
+  if (cosCrit[0] != NULL) {
     delete[] cosCrit[0];
-    cosCrit[0] = nullptr;
+    cosCrit[0] = NULL;
     delete[] cosCrit[1];
-    cosCrit[1] = nullptr;
+    cosCrit[1] = NULL;
   }
 }
 
@@ -210,65 +210,71 @@ void MCMLModel::SelectMCMLModel (ModelInput::ModelInputName modelInputName,
     Rd_ra[i] = new double [na];
     std::fill (Rd_ra[i], Rd_ra[i]+na-1, 0);   // initialize array with 0  
   }
+
   Rd_r = new double [nr];
   std::fill (Rd_r, Rd_r+nr-1, 0);
   Rd_a = new double [na];
   std::fill (Rd_a, Rd_a+na-1, 0);
+
   A_rz = new double * [nr];
   for (int i = 0; i < nr; i++) {
     A_rz[i] = new double [nz];
     std::fill (A_rz[i], A_rz[i]+nz-1, 0);  
   }
+
   A_z = new double [nz];
   std::fill (A_z, A_z+nz-1, 0);
   A_l = new double [2+layerObj.numLayers];
   std::fill (A_l, A_l+layerObj.numLayers+1, 0);
+
   Tt_ra = new double * [nr];
   for (int i = 0; i < nr; i++) {
     Tt_ra[i] = new double [na];
     std::fill (Tt_ra[i], Tt_ra[i]+na-1, 0);    
   }
+
   Tt_r = new double [nr];
   std::fill (Tt_r, Tt_r+nr-1, 0);
   Tt_a = new double [na];
-  std::fill (Tt_a, Tt_r+na-1, 0);
+  std::fill (Tt_a, Tt_a+na-1, 0);
+
 }
 
 
 void MCMLModel::FreeMCMLModel () {
-  if (Rd_ra != nullptr) {
+  if (Rd_ra != NULL) {
     for (int i = 0; i < nr; i++) 
       delete[] Rd_ra[i];
   }
-  Rd_ra = nullptr;
-  if (Rd_r != nullptr) 
+  Rd_ra = NULL;
+  if (Rd_r != NULL) 
     delete[] Rd_r;
-  Rd_r = nullptr;
-  if (Rd_a != nullptr) 
+  Rd_r = NULL;
+  if (Rd_a != NULL) 
     delete[] Rd_a;
-  Rd_a = nullptr;
-  if (A_rz != nullptr) {
+  Rd_a = NULL;
+  if (A_rz != NULL) {
     for (int i = 0; i < nr; i++) 
       delete[] A_rz[i];
   }
-  A_rz = nullptr;
-  if (A_z != nullptr) 
+  A_rz = NULL;
+  if (A_z != NULL) 
     delete[] A_z;
-  A_z = nullptr;
-  if (A_l != nullptr) 
+  A_z = NULL;
+  if (A_l != NULL) 
     delete[] A_l;
-  A_l = nullptr;
-  if (Tt_ra != nullptr) {
+  A_l = NULL;
+  if (Tt_ra != NULL) {
     for (int i = 0; i < nr; i++) 
       delete[] Tt_ra[i];
   }
-  Tt_ra = nullptr;
-  if (Tt_r != nullptr) 
+  Tt_ra = NULL;
+  if (Tt_r != NULL) 
     delete[] Tt_r;
-  Tt_r = nullptr;
-  if (Tt_a != nullptr) 
+  Tt_r = NULL;
+  if (Tt_a != NULL) 
     delete[] Tt_a;
-  Tt_a = nullptr;  
+  Tt_a = NULL;  
   this->FreeModelInput();  
 }
 

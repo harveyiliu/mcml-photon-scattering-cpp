@@ -146,11 +146,11 @@ class LayerStruct {
         TYPE_II_SKIN,
         BARE_DERMIS
     };
-    LayerStruct() : layer (nullptr), layerThickness (nullptr) {
-        layerZ[0] = nullptr;
-        layerZ[1] = nullptr;
-        cosCrit[0] = nullptr;
-        cosCrit[1] = nullptr;
+    LayerStruct() : layer (NULL), layerThickness (NULL) {
+        layerZ[0] = NULL;
+        layerZ[1] = NULL;
+        cosCrit[0] = NULL;
+        cosCrit[1] = NULL;
     }
     void SelectLayerStruct (LayerStruct::LayerName layerName =
       LayerStruct::BARE_DERMIS);
@@ -305,9 +305,9 @@ class MCMLModel : public ModelInput {
     double    Tt;		/* total transmittance. [-] */
 
   public:
-    MCMLModel () : Rd_ra (nullptr), Rd_r (nullptr), Rd_a (nullptr),
-      A_rz (nullptr), A_z (nullptr), A_l (nullptr),
-      Tt_ra (nullptr), Tt_r (nullptr), Tt_a (nullptr) {};
+    MCMLModel () : Rd_ra (NULL), Rd_r (NULL), Rd_a (NULL),
+      A_rz (NULL), A_z (NULL), A_l (NULL),
+      Tt_ra (NULL), Tt_r (NULL), Tt_a (NULL) {};
     void SelectMCMLModel (ModelInput::ModelInputName modelInputName =
         ModelInput::BARE_DERMIS, long numPhotonsSet = 1000);
     void FreeMCMLModel ();
