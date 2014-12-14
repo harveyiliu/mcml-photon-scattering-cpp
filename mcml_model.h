@@ -62,16 +62,19 @@
  *
  ****/
 
-#ifndef __MCML_CLASS_H__
-#define __MCML_CLASS_H__
+#ifndef __MCML_MODEL_H__
+#define __MCML_MODEL_H__
 
 #include <math.h>
 #include <new>
 #include <algorithm>
+#include <random>
 
 #define PI 3.1415926
 #define WEIGHT 1e-4		/* Critical weight for roulette. */
+#define CHANCE 0.1		/* Chance of roulette survival. */
 
+#define SIGN(x) ((x)>=0 ? 1:-1)
 
 /****************** Classes *****************************/
 
@@ -159,39 +162,6 @@ class LayerStruct {
 };
 
 
-/****
- *	Structure used to describe a photon packet.
-
-Photon class - MCML photon class for Monte Carlo scattering model in
-multilayered turbid media. 
-Class instance variables:
-  x = Cartesian coordinate x [cm]
-  y = Cartesian coordinate y [cm]
-  z = Cartesian coordinate z [cm]
-  ux = directional cosine x of a photon
-  uy = directional cosine y of a photon
-  uz = directional cosine z of a photon
-  w - weight
-  dead - true if photon is terminated
-  layer - index to layer where the photon packet resides
-  s - current step size [cm]
-  sleft - step size left, dimensionless [-]           
-Methods:
- ****/
-
-class Photon {
-  public:
-    double x, y ,z;	/* Cartesian coordinates.[cm] */
-    double ux, uy, uz;/* directional cosines of a photon. */
-    double w;			/* weight. */
-    bool dead;		/* true if photon is terminated. */
-    short layer;		/* index to layer where the photon */
-					/* packet resides. */
-    double s;			/* current step size. [cm]. */
-    double sleft;		/* step size left. dimensionless [-]. */    
-
-    Photon (LayerStruct layerObj, double rSpecular = 0.017);   
-};
 
 
 /****
@@ -228,6 +198,7 @@ Methods:
  ****/
 
 class ModelInput {
+  friend class Photon;
   public:
     long	 numPhotons; 		/* to be traced. */
     double Wth; 				/* play roulette if photon */
@@ -280,6 +251,8 @@ Methods:
  ****/
 
 class MCMLModel : public ModelInput {
+    friend class Photon;
+  public:
     double    Rsp;	/* specular reflectance. [-] */
     double ** Rd_ra;	/* 2D distribution of diffuse */
 					/* reflectance. [1/(cm2 sr)] */
@@ -305,7 +278,7 @@ class MCMLModel : public ModelInput {
 					/* transmittance. [1/sr] */
     double    Tt;		/* total transmittance. [-] */
 
-  public:
+//  public:
     MCMLModel () : Rd_ra (NULL), Rd_r (NULL), Rd_a (NULL),
       A_rz (NULL), A_z (NULL), A_l (NULL),
       Tt_ra (NULL), Tt_r (NULL), Tt_a (NULL) {};
@@ -315,5 +288,62 @@ class MCMLModel : public ModelInput {
 };
 
 
-#endif    //__MCML_CLASS_H__
+
+/****
+ *	Structure used to describe a photon packet.
+
+Photon class - MCML photon class for Monte Carlo scattering model in
+multilayered turbid media. 
+Class instance variables:
+  x = Cartesian coordinate x [cm]
+  y = Cartesian coordinate y [cm]
+  z = Cartesian coordinate z [cm]
+  ux = directional cosine x of a photon
+  uy = directional cosine y of a photon
+  uz = directional cosine z of a photon
+  w - weight
+  dead - true if photon is terminated
+  layer - index to layer where the photon packet resides
+  s - current step size [cm]
+  sleft - step size left, dimensionless [-]           
+Methods:
+ ****/
+
+class Photon {
+//  private:
+  public:
+    double x, y ,z;	/* Cartesian coordinates.[cm] */
+    double ux, uy, uz;/* directional cosines of a photon. */
+    double w;			/* weight. */
+    bool dead;		/* true if photon is terminated. */
+    short layer;		/* index to layer where the photon */
+					/* packet resides. */
+    double s;			/* current step size. [cm]. */
+    double sleft;		/* step size left. dimensionless [-]. */
+
+    void HopDropSpin(MCMLModel * model);
+    void HopInGlass(MCMLModel * model);
+    void HopDropSpinInTissue(MCMLModel * model);
+    void StepSizeInGlass(MCMLModel * model);
+    void StepSizeInTissue(MCMLModel * model);
+    void Hop();
+    void CrossOrNot(MCMLModel * model);
+    void CrossUpOrNot(MCMLModel * model);
+    void CrossDnOrNot(MCMLModel * model);
+    bool HitBoundary(MCMLModel * model);
+    void Drop(MCMLModel * model);
+    void Spin(double g);
+    void RecordR(MCMLModel * model, double refl);
+    void RecordT(MCMLModel * model, double refl);
+    void Roulette();    
+
+//  public:
+    Photon (LayerStruct layerObj, double rSpecular = 0.017);
+    void RunOnePhoton(MCMLModel * model);   
+};
+
+
+
+
+#endif    //__MCML_MODEL_H__
 

@@ -5,7 +5,7 @@
  ****/
 
 #include <iostream>
-#include "mcml_class.h"
+#include "mcml_model.h"
 
 using namespace std;
 
@@ -14,10 +14,13 @@ using namespace std;
  ****/
 int main(void) 
 {
-  MCMLModel skin;
-  skin.SelectMCMLModel(ModelInput::TYPE_II_SKIN);
-  cout << "dz: " << skin.dz << "\n";
-  cout << "da: " << skin.da << endl;
-  skin.FreeMCMLModel();
+  MCMLModel model;
+  model.SelectMCMLModel(ModelInput::TYPE_II_SKIN);
+  Photon photon(model.layerObj);
+  photon.RunOnePhoton(&model);
+  
+  cout << "A_rz[0][0]: " << model.A_rz[0][0] << "\n";
+  cout << "A_rz[nr-1][nz-1]: " << model.A_rz[model.nr-1][model.nz-1] << endl;
+  model.FreeMCMLModel();
   return(0);
 }
