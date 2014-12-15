@@ -16,11 +16,16 @@ int main(void)
 {
   MCMLModel model;
   model.SelectMCMLModel(ModelInput::TYPE_II_SKIN);
-  Photon photon(model.layerObj);
-  photon.RunOnePhoton(&model);
+
+  model.DoOneRun(100);
+  model.SumScaleResult();
   
-  cout << "A_rz[0][0]: " << model.A_rz[0][0] << "\n";
-  cout << "A_rz[nr-1][nz-1]: " << model.A_rz[model.nr-1][model.nz-1] << endl;
+  cout << "numPhotons: " << model.numPhotons << "\n";
+  cout << "Rsp: " << model.Rsp << "\n";
+  cout << "Rd: " << model.Rd << "\n";
+  cout << "A: " << model.A << "\n";
+  cout << "Tt: " << model.Tt << endl;
+
   model.FreeMCMLModel();
   return(0);
 }

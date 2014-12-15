@@ -4,16 +4,15 @@
  *
  ****/
 
-
 #include "mcml_model.h"
 
 #define PARTIALREFLECTION 0     
   /* 1=split photon, 0=statistical reflection. */
 
-#define COSZERO (1.0-1.0E-12)	
+#define COSZERO (1.0-1.0e-12)	
   /* cosine of about 1e-6 rad. */
 
-#define COS90D  1.0E-6		
+#define COS90D  1.0e-6		
   /* cosine of about 1.57 - 1e-6 rad. */
 
 double RFresnel(double n1, double n2, double ca1, double * ca2Ptr);
@@ -135,11 +134,25 @@ void LayerStruct::FreeLayerStruct () {
 }
 
 
+double LayerStruct::CalcRSpecular () {
+/* direct reflections from the 1st and 2nd layers. */
+
+  double temp, r1, r2;
+
+  temp = (layer[0].n - layer[1].n)/(layer[0].n + layer[1].n);
+  r1 = temp*temp;
+  
+  if ((layer[1].mua == 0.0) && (layer[1].mus == 0.0)) {
+    // glass layer.
+    temp = (layer[1].n - layer[2].n)/(layer[1].n + layer[2].n);
+    r2 = temp*temp;
+    r1 = r1 + (1 - r1)*(1 - r1)*r2/(1 - r1*r2);
+  } 
+  return r1;
+}
 
 
-
-void ModelInput::SelectModelInput (ModelInput::ModelInputName modelInputName,
-    long numPhotonsSet) {
+void ModelInput::SelectModelInput (ModelInput::ModelInputName modelInputName) {
   
   this->FreeModelInput();
   switch (modelInputName) {
@@ -167,7 +180,6 @@ void ModelInput::SelectModelInput (ModelInput::ModelInputName modelInputName,
       na = 10;
       layerObj.SelectLayerStruct(LayerStruct::BARE_DERMIS);
   }
-  numPhotons = numPhotonsSet;
   Wth = WEIGHT;
   da = 0.5*PI/na; 
 }
@@ -179,13 +191,13 @@ void ModelInput::FreeModelInput () {
 
 
 
-void MCMLModel::SelectMCMLModel (ModelInput::ModelInputName modelInputName,
-    long numPhotonsSet) {
+void MCMLModel::SelectMCMLModel (ModelInput::ModelInputName modelInputName) {
   
   this->FreeMCMLModel();
-  this->SelectModelInput (modelInputName, numPhotonsSet);
+  this->SelectModelInput (modelInputName);
 
-  Rsp = 0.0;
+  numPhotons = 0;
+  Rsp = layerObj.CalcRSpecular();
   Rd = 0.0;
   A = 0.0;
   Tt = 0.0;
@@ -265,6 +277,195 @@ void MCMLModel::FreeMCMLModel () {
 
 
 
+void MCMLModel::DoOneRun (long N) {
+  for (long i = 0; i < N; i++) {
+    Photon * photon = new Photon(layerObj, Rsp);
+    photon->RunOnePhoton(this);
+    delete photon;
+  }
+}
+
+
+void MCMLModel::SumScaleResult () {
+  // Get 1D & 0D results.
+  Sum2DRd();
+  Sum2DA();
+  Sum2DTt();  
+  ScaleRdTt();
+  ScaleA();
+}
+
+
+void MCMLModel::Sum2DRd () {
+  // Get 1D array elements by summing the 2D array elements.
+  short ir,ia;
+  double sum; 
+
+  for (ir = 0; ir < nr; ir++) {
+    sum = 0.0;
+    for (ia = 0; ia < na; ia++)
+      sum += Rd_ra[ir][ia];
+    Rd_r[ir] = sum;
+  }
+  
+  for (ia = 0; ia < na; ia++) {
+    sum = 0.0;
+    for (ir = 0; ir < nr; ir++)
+      sum += Rd_ra[ir][ia];
+    Rd_a[ia] = sum;
+  }
+  
+  sum = 0.0;
+  for (ir = 0; ir < nr; ir++)
+    sum += Rd_r[ir];
+  Rd = sum;
+}
+
+
+short MCMLModel::IzToLayer (short iz) {
+/* Return the index to the layer according to the index
+  to the grid line system in z direction (Iz).
+  Use the center of box. */
+  
+  short i;
+
+  i = 1;     	// index to layer.
+  while ((iz+0.5)*dz >= layerObj.layerZ[1][i] && i < layerObj.numLayers)
+    i++;
+
+  return i;
+}
+
+
+void MCMLModel::Sum2DA () {
+// Get 1D array elements by summing the 2D array elements.
+  short iz,ir;
+  double sum;
+
+  for (iz = 0; iz < nz; iz++) {
+    sum = 0.0;
+    for (ir = 0; ir < nr; ir++)
+      sum += A_rz[ir][iz];
+    A_z[iz] = sum;
+  } 
+  sum = 0.0;
+  for (iz = 0; iz < nz; iz++) {
+    sum += A_z[iz];
+    A_l[IzToLayer(iz)] += A_z[iz];
+  }
+  A = sum;
+}
+
+
+void MCMLModel::Sum2DTt () {
+// Get 1D array elements by summing the 2D array elements.
+  short ir,ia;
+  double sum;
+  
+  for (ir = 0; ir < nr; ir++) {
+    sum = 0.0;
+    for (ia = 0; ia < na; ia++)
+      sum += Tt_ra[ir][ia];
+    Tt_r[ir] = sum;
+  }
+  
+  for (ia = 0; ia < na; ia++) {
+    sum = 0.0;
+    for (ir = 0; ir < nr; ir++)
+      sum += Tt_ra[ir][ia];
+    Tt_a[ia] = sum;
+  }
+  
+  sum = 0.0;
+  for (ir = 0; ir < nr; ir++)
+    sum += Tt_r[ir];
+  Tt = sum;  
+}
+
+void MCMLModel::ScaleRdTt () {
+/* Scale Rd and Tt properly.
+  "a" stands for angle alpha.
+  Scale Rd(r,a) and Tt(r,a) by
+  (area perpendicular to photon direction)
+  x(solid angle)x(No. of photons).
+  or
+  [2*PI*r*dr*cos(a)]x[2*PI*sin(a)*da]x[No. of photons]
+  or
+  [2*PI*PI*dr*da*r*sin(2a)]x[No. of photons]
+  Scale Rd(r) and Tt(r) by
+  (area on the surface)x(No. of photons).
+  Scale Rd(a) and Tt(a) by
+  (solid angle)x(No. of photons). */
+
+  short ir,ia;
+  double scale1, scale2;
+  
+  scale1 = 4.0*PI*PI*dr*sin(da/2)*dr*numPhotons;
+
+  // The factor (ir+0.5)*sin(2a) to be added.
+
+  for (ir = 0; ir < nr; ir++) {  
+    for (ia = 0; ia < na; ia++) {
+      scale2 = 1.0/((ir+0.5)*sin(2.0*(ia+0.5)*da)*scale1);
+      Rd_ra[ir][ia] *= scale2;
+      Tt_ra[ir][ia] *= scale2;
+    }
+  }
+  
+  scale1 = 2.0*PI*dr*dr*numPhotons;  
+  // area is 2*PI*[(ir+0.5)*dr]*dr. 
+  // ir+0.5 to be added.
+
+  for (ir = 0; ir < nr; ir++) {
+    scale2 = 1.0/((ir+0.5)*scale1);
+    Rd_r[ir] *= scale2;
+    Tt_r[ir] *= scale2;
+  }
+  
+  scale1  = 2.0*PI*da*numPhotons;
+  // solid angle is 2*PI*sin(a)*da. sin(a) to be added.
+
+  for (ia = 0; ia < na; ia++) {
+    scale2 = 1.0/(sin((ia+0.5)*da)*scale1);
+    Rd_a[ia] *= scale2;
+    Tt_a[ia] *= scale2;
+  }
+  
+  scale2 = 1.0/numPhotons;
+  Rd *= scale2;
+  Tt *= scale2;
+}
+
+
+void MCMLModel::ScaleA () {
+/* Scale absorption arrays properly.
+  Scale A_rz */
+
+  short iz,ir;
+  short il;
+  double scale1;
+        
+  scale1 = 2.0*PI*dr*dr*dz*numPhotons;	
+  //volume is 2*pi*(ir+0.5)*dr*dr*dz. 
+  // ir+0.5 to be added.
+  for (iz = 0; iz < nz; iz++)
+    for (ir = 0; ir < nr; ir++)
+      A_rz[ir][iz] /= (ir+0.5)*scale1;
+  
+  // Scale A_z.
+  scale1 = 1.0/(dz*numPhotons);
+  for (iz = 0; iz < nz; iz++)
+    A_z[iz] *= scale1;
+  
+  // Scale A_l. Avoid int/int.
+  scale1 = 1.0/numPhotons;	
+  for (il = 0; il < layerObj.numLayers+2; il++)
+    A_l[il] *= scale1;
+  
+  A *=scale1;
+}
+
+
 
 Photon::Photon (LayerStruct layerObj, double rSpecular) {
   x = 0.0;
@@ -292,6 +493,7 @@ void Photon::RunOnePhoton (MCMLModel * model) {
   while (!dead) {
     HopDropSpin(model);
   }
+  model->numPhotons += 1;
 }
 
 void Photon::HopDropSpin(MCMLModel * model) {
@@ -376,21 +578,20 @@ void Photon::StepSizeInTissue(MCMLModel * model) {
   Layer is the index to layer.
   In_Ptr is the input parameters. */
 
-  double mua, mus, rnd;
+  double mua, mus;
 
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_real_distribution<double> unif(0, 1);
-  std::default_random_engine re;
   mua = model->layerObj.layer[layer].mua;
   mus = model->layerObj.layer[layer].mus;
 
-  if (sleft == 0.0) {      // make a new step
-    rnd = unif(re);
-    s = -log(rnd)/(mua + mus);
-  } else {                       // take the leftover
+  if (sleft == 0.0)       // make a new step
+    s = -log(unif(gen))/(mua + mus);
+  else {                       // take the leftover
     s = sleft/(mua + mus);
     sleft = 0.0;
   }
-
 }
 
 
@@ -431,9 +632,10 @@ void Photon::CrossUpOrNot(MCMLModel * model) {
   short layer0 = layer;
   double ni = model->layerObj.layer[layer0].n;
   double nt = model->layerObj.layer[layer0-1].n;
-
+  
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_real_distribution<double> unif(0, 1);
-  std::default_random_engine re;
   
   // Get r.
   if (-uz0 <= model->layerObj.cosCrit[0][layer0])
@@ -454,7 +656,7 @@ void Photon::CrossUpOrNot(MCMLModel * model) {
   } else			      		// reflected
     uz = -uz0;
 #else
-  if (unif(re) > r) {       // transmitted to layer-1
+  if (unif(gen) > r) {       // transmitted to layer-1
     if (layer0 == 1) {
       uz = -uz1;
       RecordR(model, 0.0);
@@ -488,8 +690,9 @@ void Photon::CrossDnOrNot(MCMLModel * model) {
   double ni = model->layerObj.layer[layer0].n;
   double nt = model->layerObj.layer[layer+1].n;
 
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_real_distribution<double> unif(0, 1);
-  std::default_random_engine re;
   
   // Get r
   if (uz0 <= model->layerObj.cosCrit[1][layer]) 
@@ -510,7 +713,7 @@ void Photon::CrossDnOrNot(MCMLModel * model) {
   } else 						// reflected
     uz = -uz0;
 #else
-  if (unif(re) > r) {	      // transmitted to layer+1
+  if (unif(gen) > r) {	      // transmitted to layer+1
     if (layer0 == model->layerObj.numLayers) {
       uz = uz1;
       RecordT(model, 0.0);
@@ -609,14 +812,15 @@ void Photon::Spin(double g) {
   double uz0 = uz;
   double psi;
 
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_real_distribution<double> unif(0, 1);
-  std::default_random_engine re;
   
   cost = SpinTheta(g);
   sint = sqrt(1.0 - cost*cost);
   // sqrt() is faster than sin().
 
-  psi = 2.0*PI*unif(re);       // spin psi 0-2pi
+  psi = 2.0*PI*unif(gen);       // spin psi 0-2pi
   cosp = cos(psi);
   if (psi < PI)
     sinp = sqrt(1.0 - cosp*cosp);
@@ -685,12 +889,13 @@ void Photon::Roulette() {
 /* The photon weight is small, and the photon packet tries 
   to survive a roulette. */
   
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_real_distribution<double> unif(0, 1);
-  std::default_random_engine re;
 
   if (w == 0.0)	
     dead = true;
-  else if (unif(re) < CHANCE)    // survived the roulette.
+  else if (unif(gen) < CHANCE)    // survived the roulette.
     w /= CHANCE;
   else 
     dead = true;
@@ -766,13 +971,14 @@ double SpinTheta(double g) {
 
   double temp, cost;
 
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_real_distribution<double> unif(0, 1);
-  std::default_random_engine re;
  
   if (g == 0.0) 
-    cost = 2*unif(re) - 1;
+    cost = 2*unif(gen) - 1;
   else {
-    temp = (1 - g*g)/(1 - g + 2*g*unif(re));
+    temp = (1 - g*g)/(1 - g + 2*g*unif(gen));
     cost = (1 + g*g - temp*temp)/(2*g);
     if (cost < -1)
       cost = -1.0;

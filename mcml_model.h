@@ -159,6 +159,7 @@ class LayerStruct {
     void SelectLayerStruct (LayerStruct::LayerName layerName =
       LayerStruct::BARE_DERMIS);
     void FreeLayerStruct ();
+    double CalcRSpecular ();
 };
 
 
@@ -200,7 +201,6 @@ Methods:
 class ModelInput {
   friend class Photon;
   public:
-    long	 numPhotons; 		/* to be traced. */
     double Wth; 				/* play roulette if photon */
 							      /* weight < Wth.*/
   
@@ -218,7 +218,7 @@ class ModelInput {
         TYPE_II_SKIN
     };
     void SelectModelInput (ModelInput::ModelInputName modelInputName =
-      ModelInput::BARE_DERMIS, long numPhotonsSet = 1000);
+      ModelInput::BARE_DERMIS);
     void FreeModelInput ();  	
 };
 
@@ -251,40 +251,40 @@ Methods:
  ****/
 
 class MCMLModel : public ModelInput {
-    friend class Photon;
+  friend class Photon;
+  private:
+    void Sum2DRd();
+    short IzToLayer(short iz);
+    void Sum2DA();
+    void Sum2DTt();
+    void ScaleRdTt();
+    void ScaleA(); 
   public:
-    double    Rsp;	/* specular reflectance. [-] */
-    double ** Rd_ra;	/* 2D distribution of diffuse */
-					/* reflectance. [1/(cm2 sr)] */
-    double *  Rd_r;	/* 1D radial distribution of diffuse */
-					/* reflectance. [1/cm2] */
-    double *  Rd_a;	/* 1D angular distribution of diffuse */
-					/* reflectance. [1/sr] */
-    double    Rd;		/* total diffuse reflectance. [-] */
-  
-    double ** A_rz;	/* 2D probability density in turbid */
-					/* media over r & z. [1/cm3] */
-    double *  A_z;	/* 1D probability density over z. */
-					/* [1/cm] */
-    double *  A_l;	/* each layer's absorption */
-					/* probability. [-] */
-    double    A;		/* total absorption probability. [-] */
-  
-    double ** Tt_ra;	/* 2D distribution of total */
-					/* transmittance. [1/(cm2 sr)] */
-    double *  Tt_r;	/* 1D radial distribution of */
-					/* transmittance. [1/cm2] */
-    double *  Tt_a;	/* 1D angular distribution of */
-					/* transmittance. [1/sr] */
-    double    Tt;		/* total transmittance. [-] */
+    long numPhotons;    // number of photons traced
+    double Rsp;	// specular reflectance. [-]
+    double ** Rd_ra;	  // 2D distribution of diffusereflectance. [1/(cm2 sr)]
+    double * Rd_r;	  // 1D radial distribution of diffuse reflectance. [1/cm2]
+    double * Rd_a;	  // 1D angular distribution of diffuse reflectance. [1/sr]
+    double Rd;		  // total diffuse reflectance. [-]  
+    double ** A_rz; // 2D probability density in turbid media over r & z.
+                    // [1/cm3]
+    double * A_z;	// 1D probability density over z. [1/cm]
+    double * A_l;	// each layer's absorption probability. [-]
+    double A;		  // total absorption probability. [-]  
+    double ** Tt_ra;	// 2D distribution of total transmittance. [1/(cm2 sr)]
+    double * Tt_r;	  // 1D radial distribution of transmittance. [1/cm2]
+    double * Tt_a;	  // 1D angular distribution of transmittance. [1/sr]
+    double Tt;		// total transmittance. [-]
 
-//  public:
+
     MCMLModel () : Rd_ra (NULL), Rd_r (NULL), Rd_a (NULL),
       A_rz (NULL), A_z (NULL), A_l (NULL),
       Tt_ra (NULL), Tt_r (NULL), Tt_a (NULL) {};
     void SelectMCMLModel (ModelInput::ModelInputName modelInputName =
-        ModelInput::BARE_DERMIS, long numPhotonsSet = 1000);
+        ModelInput::BARE_DERMIS);
     void FreeMCMLModel ();
+    void DoOneRun (long numPhotons);
+    void SumScaleResult();
 };
 
 
@@ -310,8 +310,8 @@ Methods:
  ****/
 
 class Photon {
-//  private:
-  public:
+  friend class MCMLModel;
+  private:
     double x, y ,z;	/* Cartesian coordinates.[cm] */
     double ux, uy, uz;/* directional cosines of a photon. */
     double w;			/* weight. */
@@ -337,7 +337,7 @@ class Photon {
     void RecordT(MCMLModel * model, double refl);
     void Roulette();    
 
-//  public:
+  public:
     Photon (LayerStruct layerObj, double rSpecular = 0.017);
     void RunOnePhoton(MCMLModel * model);   
 };
