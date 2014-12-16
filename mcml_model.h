@@ -67,6 +67,7 @@
 
 #include <math.h>
 #include <new>
+#include <string>
 #include <algorithm>
 #include <random>
 
@@ -150,11 +151,11 @@ class LayerStruct {
         BARE_DERMIS,
         TYPE_II_SKIN
     };
-    LayerStruct() : layer (NULL), layerThickness (NULL) {
-        layerZ[0] = NULL;
-        layerZ[1] = NULL;
-        cosCrit[0] = NULL;
-        cosCrit[1] = NULL;
+    LayerStruct() : layer (nullptr), layerThickness (nullptr) {
+        layerZ[0] = nullptr;
+        layerZ[1] = nullptr;
+        cosCrit[0] = nullptr;
+        cosCrit[1] = nullptr;
     }
     void SelectLayerStruct (LayerStruct::LayerName layerName =
       LayerStruct::BARE_DERMIS);
@@ -277,11 +278,10 @@ class MCMLModel : public ModelInput {
     double Tt;		// total transmittance. [-]
 
 
-    MCMLModel () : Rd_ra (NULL), Rd_r (NULL), Rd_a (NULL),
-      A_rz (NULL), A_z (NULL), A_l (NULL),
-      Tt_ra (NULL), Tt_r (NULL), Tt_a (NULL) {};
-    void SelectMCMLModel (ModelInput::ModelInputName modelInputName =
-        ModelInput::BARE_DERMIS);
+    MCMLModel () : Rd_ra (nullptr), Rd_r (nullptr), Rd_a (nullptr),
+      A_rz (nullptr), A_z (nullptr), A_l (nullptr),
+      Tt_ra (nullptr), Tt_r (nullptr), Tt_a (nullptr) {};
+    void SelectMCMLModel (std::string modelName);
     void FreeMCMLModel ();
     void DoOneRun (long numPhotons);
     void SumScaleResult();
@@ -338,7 +338,7 @@ class Photon {
     void Roulette();    
 
   public:
-    Photon (LayerStruct layerObj, double rSpecular = 0.017);
+    void Reset(MCMLModel * model);
     void RunOnePhoton(MCMLModel * model);   
 };
 

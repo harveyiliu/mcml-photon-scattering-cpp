@@ -111,25 +111,25 @@ void LayerStruct::SelectLayerStruct (LayerStruct::LayerName layerName) {
 
 
 void LayerStruct::FreeLayerStruct () {
-  if (layer != NULL) {
+  if (layer != nullptr) {
     delete[] layer;
-    layer = NULL;
+    layer = nullptr;
   }
-  if (layerThickness != NULL) {
+  if (layerThickness != nullptr) {
     delete[] layerThickness;
-    layerThickness = NULL;
+    layerThickness = nullptr;
   }
-  if (layerZ[0] != NULL) {
+  if (layerZ[0] != nullptr) {
     delete[] layerZ[0];
-    layerZ[0] = NULL;
+    layerZ[0] = nullptr;
     delete[] layerZ[1];
-    layerZ[1] = NULL;
+    layerZ[1] = nullptr;
   }
-  if (cosCrit[0] != NULL) {
+  if (cosCrit[0] != nullptr) {
     delete[] cosCrit[0];
-    cosCrit[0] = NULL;
+    cosCrit[0] = nullptr;
     delete[] cosCrit[1];
-    cosCrit[1] = NULL;
+    cosCrit[1] = nullptr;
   }
 }
 
@@ -191,10 +191,16 @@ void ModelInput::FreeModelInput () {
 
 
 
-void MCMLModel::SelectMCMLModel (ModelInput::ModelInputName modelInputName) {
+void MCMLModel::SelectMCMLModel (std::string modelName) {
   
   this->FreeMCMLModel();
-  this->SelectModelInput (modelInputName);
+
+  if (modelName.compare("BARE_DERMIS"))
+    this->SelectModelInput (ModelInput::BARE_DERMIS);
+  else if (modelName.compare("TYPE_II_SKIN"))
+    this->SelectModelInput (ModelInput::TYPE_II_SKIN);
+  else
+    this->SelectModelInput (ModelInput::BARE_DERMIS);    
 
   numPhotons = 0;
   Rsp = layerObj.CalcRSpecular();
@@ -239,49 +245,48 @@ void MCMLModel::SelectMCMLModel (ModelInput::ModelInputName modelInputName) {
 
 
 void MCMLModel::FreeMCMLModel () {
-  if (Rd_ra != NULL) {
+  if (Rd_ra != nullptr) {
     for (int i = 0; i < nr; i++) 
       delete[] Rd_ra[i];
   }
-  Rd_ra = NULL;
-  if (Rd_r != NULL) 
+  Rd_ra = nullptr;
+  if (Rd_r != nullptr) 
     delete[] Rd_r;
-  Rd_r = NULL;
-  if (Rd_a != NULL) 
+  Rd_r = nullptr;
+  if (Rd_a != nullptr) 
     delete[] Rd_a;
-  Rd_a = NULL;
-  if (A_rz != NULL) {
+  Rd_a = nullptr;
+  if (A_rz != nullptr) {
     for (int i = 0; i < nr; i++) 
       delete[] A_rz[i];
   }
-  A_rz = NULL;
-  if (A_z != NULL) 
+  A_rz = nullptr;
+  if (A_z != nullptr) 
     delete[] A_z;
-  A_z = NULL;
-  if (A_l != NULL) 
+  A_z = nullptr;
+  if (A_l != nullptr) 
     delete[] A_l;
-  A_l = NULL;
-  if (Tt_ra != NULL) {
+  A_l = nullptr;
+  if (Tt_ra != nullptr) {
     for (int i = 0; i < nr; i++) 
       delete[] Tt_ra[i];
   }
-  Tt_ra = NULL;
-  if (Tt_r != NULL) 
+  Tt_ra = nullptr;
+  if (Tt_r != nullptr) 
     delete[] Tt_r;
-  Tt_r = NULL;
-  if (Tt_a != NULL) 
+  Tt_r = nullptr;
+  if (Tt_a != nullptr) 
     delete[] Tt_a;
-  Tt_a = NULL;  
+  Tt_a = nullptr;  
   this->FreeModelInput();  
 }
 
 
 
-void MCMLModel::DoOneRun (long N) {
-  for (long i = 0; i < N; i++) {
-    Photon * photon = new Photon(layerObj, Rsp);
-    photon->RunOnePhoton(this);
-    delete photon;
+void MCMLModel::DoOneRun (long numPhotonsSet) {
+  Photon photon;
+  for (long i = 0; i < numPhotonsSet; i++) {
+    photon.RunOnePhoton(this);
   }
 }
 
@@ -467,29 +472,31 @@ void MCMLModel::ScaleA () {
 
 
 
-Photon::Photon (LayerStruct layerObj, double rSpecular) {
+void Photon::Reset (MCMLModel * model) {
   x = 0.0;
   y = 0.0;
   z = 0.0;
   ux = 0.0;
   uy = 0.0;
   uz = 1.0;
-  w = 1.0 - rSpecular;
+  w = 1.0 - model->Rsp;
   dead = false;
   layer = 1;
   s = 0;
   sleft = 0;
   
   // take care of the case when the first layer is glass
-  if ((layerObj.layer[1].mua == 0.0) && (layerObj.layer[1].mus == 0.0)) {
+  if ((model->layerObj.layer[1].mua == 0.0) && 
+      (model->layerObj.layer[1].mus == 0.0)) {
     layer = 2;      // skip to next layer
-    z = layerObj.layerZ[0][2];  // use z0 from the next layer
+    z = model->layerObj.layerZ[0][2];  // use z0 from the next layer
   }
 }
 
 
 void Photon::RunOnePhoton (MCMLModel * model) {
 // run a single photon scattering till completion
+  Reset(model);
   while (!dead) {
     HopDropSpin(model);
   }
