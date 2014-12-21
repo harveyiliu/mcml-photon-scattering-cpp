@@ -24,7 +24,7 @@ void Medium::SelectMedium (Medium::MediumName mediumName) {
       n = 1.0;
       mua = 0.0;
       mus = 0.0;
-      g = 0.0;
+      g = 1.0;
       break;
     case Medium::DERMIS:    // 800-nm wavelngth
       n = 1.4;
@@ -193,7 +193,6 @@ double LayerStruct::CalcRSpecular () {
 
   temp = (layer[0].n - layer[1].n)/(layer[0].n + layer[1].n);
   r1 = temp*temp;
-  
   if ((layer[1].mua == 0.0) && (layer[1].mus == 0.0)) {
     // glass layer.
     temp = (layer[1].n - layer[2].n)/(layer[1].n + layer[2].n);
@@ -263,13 +262,13 @@ void MCMLModel::SelectMCMLModel (std::string modelName) {
   
   this->FreeMCMLModel();
 
-  if (modelName.compare("BARE_DERMIS"))
+  if (modelName.compare("BARE_DERMIS") == 0)
     this->SelectModelInput (ModelInput::BARE_DERMIS);
-  else if (modelName.compare("TYPE_II_SKIN"))
+  else if (modelName.compare("TYPE_II_SKIN") == 0)
     this->SelectModelInput (ModelInput::TYPE_II_SKIN);
-  else if (modelName.compare("CORNEA"))
+  else if (modelName.compare("CORNEA") == 0)
     this->SelectModelInput (ModelInput::CORNEA);
-  else if (modelName.compare("EYE_ANTERIOR"))
+  else if (modelName.compare("EYE_ANTERIOR") == 0)
     this->SelectModelInput (ModelInput::EYE_ANTERIOR);
   else
     this->SelectModelInput (ModelInput::BARE_DERMIS);    
