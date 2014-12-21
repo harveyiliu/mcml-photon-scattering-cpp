@@ -8,6 +8,8 @@
     modelName = predefined model name, current set of models are:
       1. BARE_DERMIS (800-nm) - default
       2. TYPE_II_SKIN (800-nm)
+      3. CORNEA (1060-nm)
+      4. EYE_ANTERIOR (1060-nm)
     N = number of photons to be used in the Monte-Carlo simulation
   Run command example:
     ./mcml TYPE_II_SKIN 1000 &

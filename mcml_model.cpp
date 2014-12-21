@@ -26,18 +26,48 @@ void Medium::SelectMedium (Medium::MediumName mediumName) {
       mus = 0.0;
       g = 0.0;
       break;
-    case Medium::DERMIS:
+    case Medium::DERMIS:    // 800-nm wavelngth
       n = 1.4;
       mua = 0.26;
       mus = 137.0;
       g = 0.90;
       break;
-    case Medium::TYPE_II_EPIDERMIS:
+    case Medium::TYPE_II_EPIDERMIS:   // 800-nm
       n = 1.3;
       mua = 5.0;
       mus = 200.0;
       g = 0.70;
       break;    
+    case Medium::CORNEA:    // 1060-nm
+      n = 1.376;
+      mua = 0.157;    // from Bovine NIR paper 2011
+      mus = 1.064;
+      g = 0.90;
+      break;
+    case Medium::AQUEOUS_HUMOR:   // 1060-nm
+      n = 1.336;
+      mua = 0.78;     // from Optical properties of ocular tissues
+      mus = 0.60;
+      g = 0.99;
+      break;
+    case Medium::LENS:   // 1060-nm
+      n = 1.406;
+      mua = 0.206;     // from Bovine NIR paper 2011
+      mus = 1.131;
+      g = 0.90;
+      break;
+    case Medium::VITREOUS_HUMOR:   // 1060-nm
+      n = 1.337;
+      mua = 0.48;     // from Optical properties of ocular tissues
+      mus = 0.25;
+      g = 0.99;
+      break;
+    case Medium::RETINA:   // 1060-nm
+      n = 1.358;
+      mua = 2.745;     // from Bovine NIR paper 2011
+      mus = 71.50;
+      g = 0.70;
+      break;
     default:
       n = 1.4;
       mua = 0.26;
@@ -72,6 +102,28 @@ void LayerStruct::SelectLayerStruct (LayerStruct::LayerName layerName) {
       layerThickness = new double [numLayers];
       layerThickness[0] = 0.006;
       layerThickness[1] = 0.3;
+      break;
+    case LayerStruct::CORNEA:
+      numLayers = 1;
+      layer = new Medium [numLayers+2];
+      layer[0].SelectMedium(Medium::AIR);
+      layer[1].SelectMedium(Medium::CORNEA);
+      layer[2].SelectMedium(Medium::AQUEOUS_HUMOR);
+      layerThickness = new double [numLayers];
+      layerThickness[0] = 0.0449;
+      break;
+    case LayerStruct::EYE_ANTERIOR:
+      numLayers = 3;
+      layer = new Medium [numLayers+2];
+      layer[0].SelectMedium(Medium::AIR);
+      layer[1].SelectMedium(Medium::CORNEA);
+      layer[2].SelectMedium(Medium::AQUEOUS_HUMOR);
+      layer[3].SelectMedium(Medium::LENS);
+      layer[4].SelectMedium(Medium::VITREOUS_HUMOR);
+      layerThickness = new double [numLayers];
+      layerThickness[0] = 0.0449;
+      layerThickness[1] = 0.2794;
+      layerThickness[2] = 0.4979;
       break;
     default:
       numLayers = 1;
@@ -172,6 +224,22 @@ void ModelInput::SelectModelInput (ModelInput::ModelInputName modelInputName) {
       na = 10;
       layerObj.SelectLayerStruct(LayerStruct::TYPE_II_SKIN);
       break;
+    case LayerStruct::CORNEA:
+      dz = 10e-4;
+      dr = 10e-4;
+      nz = 100;
+      nr = 50;
+      na = 10;
+      layerObj.SelectLayerStruct(LayerStruct::CORNEA);
+      break;
+    case LayerStruct::EYE_ANTERIOR:
+      dz = 20e-4;
+      dr = 20e-4;
+      nz = 500;
+      nr = 250;
+      na = 10;
+      layerObj.SelectLayerStruct(LayerStruct::EYE_ANTERIOR);
+      break;
     default:
       dz = 100e-4;
       dr = 100e-4;
@@ -199,6 +267,10 @@ void MCMLModel::SelectMCMLModel (std::string modelName) {
     this->SelectModelInput (ModelInput::BARE_DERMIS);
   else if (modelName.compare("TYPE_II_SKIN"))
     this->SelectModelInput (ModelInput::TYPE_II_SKIN);
+  else if (modelName.compare("CORNEA"))
+    this->SelectModelInput (ModelInput::CORNEA);
+  else if (modelName.compare("EYE_ANTERIOR"))
+    this->SelectModelInput (ModelInput::EYE_ANTERIOR);
   else
     this->SelectModelInput (ModelInput::BARE_DERMIS);    
 

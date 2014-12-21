@@ -102,7 +102,12 @@ class Medium {
     enum MediumName {
         AIR,
         DERMIS,
-        TYPE_II_EPIDERMIS
+        TYPE_II_EPIDERMIS,
+        CORNEA,
+        AQUEOUS_HUMOR,
+        LENS,
+        VITREOUS_HUMOR,
+        RETINA
     };
     void SelectMedium (Medium::MediumName mediumName = Medium::DERMIS);    
 };
@@ -149,7 +154,9 @@ class LayerStruct {
   public:  
     enum LayerName {
         BARE_DERMIS,
-        TYPE_II_SKIN
+        TYPE_II_SKIN,
+        CORNEA,
+        EYE_ANTERIOR
     };
     LayerStruct() : layer (nullptr), layerThickness (nullptr) {
         layerZ[0] = nullptr;
@@ -216,7 +223,9 @@ class ModelInput {
 
     enum ModelInputName {
         BARE_DERMIS,
-        TYPE_II_SKIN
+        TYPE_II_SKIN,
+        CORNEA,
+        EYE_ANTERIOR
     };
     void SelectModelInput (ModelInput::ModelInputName modelInputName =
       ModelInput::BARE_DERMIS);
