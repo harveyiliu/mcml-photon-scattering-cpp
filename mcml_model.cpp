@@ -6,6 +6,9 @@
 
 #include "mcml_model.h"
 
+#define STANDARDTEST 0
+  /* testing program using fixed rnd seed. */
+
 #define PARTIALREFLECTION 0     
   /* 1=split photon, 0=statistical reflection. */
 
@@ -17,6 +20,8 @@
 
 double RFresnel(double n1, double n2, double ca1, double * ca2Ptr);
 double SpinTheta(double g);
+float ran3(int * idum);
+double RandomNum();
 
 void Medium::SelectMedium (Medium::MediumName mediumName) {
   switch (mediumName) {
@@ -658,14 +663,11 @@ void Photon::StepSizeInTissue(MCMLModel * model) {
 
   double mua, mus;
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> unif(0, 1);
   mua = model->layerObj.layer[layer].mua;
   mus = model->layerObj.layer[layer].mus;
 
   if (sleft == 0.0)       // make a new step
-    s = -log(unif(gen))/(mua + mus);
+    s = -log(RandomNum())/(mua + mus);
   else {                       // take the leftover
     s = sleft/(mua + mus);
     sleft = 0.0;
@@ -711,9 +713,6 @@ void Photon::CrossUpOrNot(MCMLModel * model) {
   double ni = model->layerObj.layer[layer0].n;
   double nt = model->layerObj.layer[layer0-1].n;
   
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> unif(0, 1);
   
   // Get r.
   if (-uz0 <= model->layerObj.cosCrit[0][layer0])
@@ -726,7 +725,7 @@ void Photon::CrossUpOrNot(MCMLModel * model) {
     uz = -uz1;          // transmitted photon
     RecordR(model, r);
     uz = -uz0;           // reflected photon
-  } else if (unif(re) > r) {    // transmitted to layer-1
+  } else if (RandomNum() > r) {    // transmitted to layer-1
     layer -= 1;
     ux *= ni/nt;
     uy *= ni/nt;
@@ -734,7 +733,7 @@ void Photon::CrossUpOrNot(MCMLModel * model) {
   } else			      		// reflected
     uz = -uz0;
 #else
-  if (unif(gen) > r) {       // transmitted to layer-1
+  if (RandomNum() > r) {       // transmitted to layer-1
     if (layer0 == 1) {
       uz = -uz1;
       RecordR(model, 0.0);
@@ -768,9 +767,6 @@ void Photon::CrossDnOrNot(MCMLModel * model) {
   double ni = model->layerObj.layer[layer0].n;
   double nt = model->layerObj.layer[layer+1].n;
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> unif(0, 1);
   
   // Get r
   if (uz0 <= model->layerObj.cosCrit[1][layer]) 
@@ -783,7 +779,7 @@ void Photon::CrossDnOrNot(MCMLModel * model) {
     uz = uz1;
     RecordT(model, r);
     uz = -uz0;
-  } else if (unif(re) > r) {     // transmitted to layer+1
+  } else if (RandomNum() > r) {     // transmitted to layer+1
     layer += 1;
     ux *= ni/nt;
     uy *= ni/nt;
@@ -791,7 +787,7 @@ void Photon::CrossDnOrNot(MCMLModel * model) {
   } else 						// reflected
     uz = -uz0;
 #else
-  if (unif(gen) > r) {	      // transmitted to layer+1
+  if (RandomNum() > r) {	      // transmitted to layer+1
     if (layer0 == model->layerObj.numLayers) {
       uz = uz1;
       RecordT(model, 0.0);
@@ -889,16 +885,12 @@ void Photon::Spin(double g) {
   double uy0 = uy;
   double uz0 = uz;
   double psi;
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> unif(0, 1);
   
   cost = SpinTheta(g);
   sint = sqrt(1.0 - cost*cost);
   // sqrt() is faster than sin().
 
-  psi = 2.0*PI*unif(gen);       // spin psi 0-2pi
+  psi = 2.0*PI*RandomNum();       // spin psi 0-2pi
   cosp = cos(psi);
   if (psi < PI)
     sinp = sqrt(1.0 - cosp*cosp);
@@ -966,14 +958,10 @@ void Photon::RecordT(MCMLModel * model, double refl) {
 void Photon::Roulette() {
 /* The photon weight is small, and the photon packet tries 
   to survive a roulette. */
-  
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> unif(0, 1);
 
   if (w == 0.0)	
     dead = true;
-  else if (unif(gen) < CHANCE)    // survived the roulette.
+  else if (RandomNum() < CHANCE)    // survived the roulette.
     w /= CHANCE;
   else 
     dead = true;
@@ -1048,15 +1036,11 @@ double SpinTheta(double g) {
   Returns the cosine of the polar deflection angle theta. */
 
   double temp, cost;
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> unif(0, 1);
  
   if (g == 0.0) 
-    cost = 2*unif(gen) - 1;
+    cost = 2*RandomNum() - 1;
   else {
-    temp = (1 - g*g)/(1 - g + 2*g*unif(gen));
+    temp = (1 - g*g)/(1 - g + 2*g*RandomNum());
     cost = (1 + g*g - temp*temp)/(2*g);
     if (cost < -1)
       cost = -1.0;
@@ -1064,4 +1048,86 @@ double SpinTheta(double g) {
       cost = 1.0;
   }
   return cost;
+}
+
+
+/***********************************************************
+ *	A random number generator from Numerical Recipes in C.
+ ****/
+#define MBIG 1000000000
+#define MSEED 161803398
+#define MZ 0
+#define FAC 1.0E-9
+
+float ran3(int *idum)
+{
+  static int inext,inextp;
+  static long ma[56];
+  static int iff=0;
+  long mj,mk;
+  int i,ii,k;
+  
+  if (*idum < 0 || iff == 0) {
+    iff=1;
+    mj=MSEED-(*idum < 0 ? -*idum : *idum);
+    mj %= MBIG;
+    ma[55]=mj;
+    mk=1;
+    for (i=1;i<=54;i++) {
+      ii=(21*i) % 55;
+      ma[ii]=mk;
+      mk=mj-mk;
+      if (mk < MZ) mk += MBIG;
+      mj=ma[ii];
+    }
+    for (k=1;k<=4;k++)
+      for (i=1;i<=55;i++) {
+	ma[i] -= ma[1+(i+30) % 55];
+	if (ma[i] < MZ) ma[i] += MBIG;
+      }
+    inext=0;
+    inextp=31;
+    *idum=1;
+  }
+  if (++inext == 56) inext=1;
+  if (++inextp == 56) inextp=1;
+  mj=ma[inext]-ma[inextp];
+  if (mj < MZ) mj += MBIG;
+  ma[inext]=mj;
+  return mj*FAC;
+}
+
+#undef MBIG
+#undef MSEED
+#undef MZ
+#undef FAC
+
+
+
+/***********************************************************
+ *	Generate a random number between 0 and 1.  Take a 
+ *	number as seed the first time entering the function.  
+ *	The seed is limited to 1<<15.  
+ *	We found that when idum is too large, ran3 may return 
+ *	numbers beyond 0 and 1.
+ ****/
+double RandomNum() {
+  static bool first_time=true;
+  static int idum;	/* seed for ran3. */
+  
+  if(first_time) {
+#if STANDARDTEST /* Use fixed seed to test the program. */
+    idum = - 1;
+#else
+    idum = -(int)time(NULL)%(1<<15);
+	  /* use 16-bit integer as the seed. */
+#endif
+    ran3(&idum);
+    first_time = 0;
+    idum = 1;
+  }
+  
+  return( (double)ran3(&idum) );
+  
+  
 }
