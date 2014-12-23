@@ -69,6 +69,7 @@
 #include <new>
 #include <string>
 #include <algorithm>
+#include <random>
 
 #define PI 3.1415926
 #define WEIGHT 1e-4		/* Critical weight for roulette. */
