@@ -11,12 +11,14 @@
       3. CORNEA (1060-nm)
       4. EYE_ANTERIOR (1060-nm)
     N = number of photons to be used in the Monte-Carlo simulation
+    convName = convolution system name
   Run command example:
-    ./mcml TYPE_II_SKIN 1000 &
+    ./mcml TYPE_II_SKIN 1000 TRIA_HRL &
  ****/
 
 #include <iostream>
 #include "mcml_model.h"
+#include "mcml_conv.h"
 
 using namespace std;
 
@@ -26,13 +28,15 @@ using namespace std;
 int main(int argc, char * argv[]) 
 {
   // Check the number of parameters
-  if (argc < 3) {
+  if (argc < 4) {
     // Tell the user how to run the program
-    cerr << "Usage: " << argv[0] << " MODEL NAME" << " PHOTON NUMBER" << endl;
+    cerr << "Usage: " << argv[0] << " MODEL NAME" << " PHOTON NUMBER" 
+        << "CONV NAME" << endl;
     return 1;
   }
   string modelName(argv[1]);
   string numPhotonsSetStr(argv[2]);
+  string convName(argv[3]);      // convolution system name
   string::size_type sz;   // alias of size_t
   
   long numPhotonsSet = stol (numPhotonsSetStr, &sz);
@@ -48,6 +52,12 @@ int main(int argc, char * argv[])
   cout << "A: " << model.A << "\n";
   cout << "Tt: " << model.Tt << endl;
 
-  model.FreeMCMLModel();
+  MCMLConv conv;
+  conv.SelectMCMLConv(model, convName);
+  conv.RunConv();
+
+  cout << "Convolution complete." << endl;
+
+  conv.FreeMCMLConv();
   return(0);
 }

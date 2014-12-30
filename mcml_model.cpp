@@ -20,7 +20,7 @@
 
 double RFresnel(double n1, double n2, double ca1, double * ca2Ptr);
 double SpinTheta(double g);
-double RandomNum();
+double RandomNum(bool reseed = false);
 
 
 void Medium::SelectMedium (Medium::MediumName mediumName) {
@@ -1056,12 +1056,12 @@ double SpinTheta(double g) {
 /***********************************************************
  *	Generate a random number between 0 and 1.
  ****/
-double RandomNum() {
+double RandomNum(bool reseed) {
   static bool firstTime = true;
   static std::default_random_engine gen;
   static std::uniform_real_distribution<double> unif(0.0, 1.0);
 
-  if (firstTime) {
+  if (firstTime || reseed) {
     std::random_device rd;
     gen.seed(rd());
     firstTime = false;

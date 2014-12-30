@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS=-c -Wall -std=c++11
-LDFLAGS=
-SOURCES=mcml_main.cpp mcml_model.cpp
+LDFLAGS=-lgsl -lgslcblas
+SOURCES=mcml_main.cpp mcml_model.cpp mcml_conv.cpp
 OBJECTS=$(SOURCES:.cpp=.o)
 EXECUTABLE=mcml
 
