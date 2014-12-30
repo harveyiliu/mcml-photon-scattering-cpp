@@ -9,7 +9,13 @@
 double ITheta(double r, double r2, double R);
 double ExpBessI0(double r, double r2, double R);
 double RT_raInterp(double r2, double ** RT_ra, MCMLConv * mcmlConv);
+double RT_rInterp(double r2, double * RT_r, MCMLConv * mcmlConv);
+double A_rzInterp(double r2, MCMLConv * mcmlConv);
 double Rd_raFGIntegrand(double r2, void * params);
+double Rd_rFGIntegrand(double r2, void * params);
+double A_rzFGIntegrand(double r2, void * params);
+double Tt_raFGIntegrand(double r2, void * params);
+double Tt_rFGIntegrand(double r2, void * params);
 double IntegrateQuad(double (*func) (double x, void * params), 
           double a, double b, MCMLConv * mcmlConv);
 double FlatIntegration(double (*func) (double x, void * params), 
@@ -270,27 +276,86 @@ void MCMLConv::ConvRd_ra () {
       else      // Gaussian
         Rd_rac[irc][ia] = 4*P/(R*R)*GaussIntegration(&Rd_raFGIntegrand, this);
     }
+    Node::FreeTree(convVar.tree);
   }
 }
 
 
 void MCMLConv::ConvRd_r () {
+  short irc;
+  double rc;
+  double P = beam.P;
+  double R = beam.R;
 
+  for (irc = 0; irc < nrc; irc++) {
+    rc = (irc + 0.5)*drc;
+    convVar.r = rc;
+    if (beam.type == Beam::FLAT)
+      Rd_rc[irc] = 2*P/(R*R)*FlatIntegration(&Rd_rFGIntegrand, this);
+    else       // Gaussian
+      Rd_rc[irc] = 4*P/(R*R)*GaussIntegration(&Rd_rFGIntegrand, this);
+  }
 }
 
 
 void MCMLConv::ConvA_rz () {
+  short irc, iz;
+  double rc;
+  double P = beam.P;
+  double R = beam.R;
 
+  for (irc = 0; irc < nrc; irc++) {
+    rc = (irc + 0.5)*drc;
+    convVar.r = rc;
+    convVar.tree = nullptr;    	// init the tree
+    for (iz = 0; iz < mcmlModel.nz; iz++) {
+      convVar.iz = iz;
+      if (beam.type == Beam::FLAT)
+        A_rzc[irc][iz] = 2*P/(R*R)*FlatIntegration(&A_rzFGIntegrand, this);
+      else       // Gaussian
+        A_rzc[irc][iz] = 4*P/(R*R)*GaussIntegration(&A_rzFGIntegrand, this);
+    }
+    Node::FreeTree(convVar.tree);
+  }
 }
 
 
 void MCMLConv::ConvTt_ra () {
+  short irc, ia;
+  double rc;
+  double P = beam.P;
+  double R = beam.R;
 
+  for (irc = 0; irc < nrc; irc++) {
+    rc = (irc + 0.5)*drc;
+    convVar.r = rc;
+    convVar.tree = nullptr;        // init the tree
+    for (ia = 0; ia < mcmlModel.na; ia++) {
+      convVar.ia = ia;
+      if (beam.type == Beam::FLAT)
+        Tt_rac[irc][ia] = 2*P/(R*R)*FlatIntegration(&Tt_raFGIntegrand, this);
+      else       // Gaussian
+        Tt_rac[irc][ia] = 4*P/(R*R)*GaussIntegration(&Tt_raFGIntegrand, this);
+    }
+    Node::FreeTree(convVar.tree);
+  }
 }
 
 
 void MCMLConv::ConvTt_r () {
+  short irc;
+  double rc;
+  double P = beam.P;
+  double R = beam.R;
 
+  for (irc = 0; irc < nrc; irc++) {
+    rc = (irc + 0.5)*drc;
+    convVar.r = rc;
+    if (beam.type == Beam::FLAT)
+      Tt_rc[irc] = 2*P/(R*R)*FlatIntegration(&Tt_rFGIntegrand, this);
+    else	       // Gaussian
+      Tt_rc[irc] = 4*P/(R*R)*GaussIntegration(&Tt_rFGIntegrand, this);
+  }
 }
 
 
@@ -323,6 +388,65 @@ double RT_raInterp(double r2, double ** RT_ra, MCMLConv * mcmlConv) {
   return std::max<double>(0, RT_at_r2);
 }
 
+
+
+double RT_rInterp(double r2, double * RT_r, MCMLConv * mcmlConv) {
+// Interpolate for the arrays Rd_r[] or Tt_r[].
+  short nr = mcmlConv->mcmlModel.nr;
+  short ir2lo;
+  double RT_lo, RT_hi, RT_at_r2;
+  double ir2 = r2/mcmlConv->mcmlModel.dr;
+  
+  if (nr < 3)
+    RT_at_r2 = RT_r[0];
+  else if (ir2 < (nr - 1.5)) {      // interpolation
+    ir2lo = std::max<short>(0, (short) (ir2 - 0.5));       // truncation
+    RT_lo = RT_r[ir2lo];
+    RT_hi = RT_r[ir2lo + 1];
+    RT_at_r2 = RT_lo + (RT_hi - RT_lo)*(ir2 - ir2lo - 0.5);
+  }
+  else {           // extrapolation
+    ir2lo = nr - 3;
+    RT_lo = RT_r[ir2lo];
+    RT_hi = RT_r[ir2lo + 1];
+    if (RT_lo >= RT_hi)      // Noise test
+      RT_at_r2 = RT_lo + (RT_hi - RT_lo)*(ir2 - ir2lo - 0.5);
+    else
+      RT_at_r2 = 0.0;
+  }
+    return std::max<double>(0, RT_at_r2);
+}
+
+
+
+double A_rzInterp(double r2, MCMLConv * mcmlConv) {
+// Interpolate for the arrays A_rz[]
+  double ** A_rz = mcmlConv->mcmlModel.A_rz;
+  short nr = mcmlConv->mcmlModel.nr;
+  short iz = mcmlConv->convVar.iz;
+  short ir2lo;
+  double A_lo, A_hi, A_at_r2;
+  double ir2 = r2/mcmlConv->mcmlModel.dr;
+  
+  if (nr < 3)
+    A_at_r2 = A_rz[0][iz];
+  else if (ir2 < (nr - 1.5)) {       // interpolation
+    ir2lo = std::max<short>(0, (short) (ir2 - 0.5));   // truncation
+    A_lo = A_rz[ir2lo][iz];
+    A_hi = A_rz[ir2lo + 1][iz];
+    A_at_r2 = A_lo + (A_hi - A_lo)*(ir2 - ir2lo - 0.5);
+  }
+  else {       // extrapolation
+    ir2lo = nr - 3;
+    A_lo = A_rz[ir2lo][iz];
+    A_hi = A_rz[ir2lo + 1][iz];
+    if (A_lo >= A_hi)       // Noise test
+      A_at_r2 = A_lo + (A_hi - A_lo)*(ir2 - ir2lo - 0.5);
+    else
+      A_at_r2 = 0.0;
+  }
+  return std::max<double>(0, A_at_r2);
+}
 
 
 
@@ -382,6 +506,118 @@ double Rd_raFGIntegrand(double r2, void * params) {
   return f;
 }
 
+
+
+double Rd_rFGIntegrand(double r2, void * params) {
+/* Convolution integrand for either flat or gaussian beams.
+    See comments for A_rzFGIntegrand().
+    r" in the integration
+*/
+
+  MCMLConv * mcmlConv = (MCMLConv *) params;
+
+  double f;
+  double * RT_r = mcmlConv->mcmlModel.Rd_r;
+  double Rd_at_r2 = RT_rInterp(r2, RT_r, mcmlConv);
+  double R = mcmlConv->beam.R;
+  double r = mcmlConv->convVar.r;
+
+  if (mcmlConv->beam.type == Beam::FLAT)
+    f = Rd_at_r2*ITheta(r, r2, R)*r2;
+  else       // Gaussian
+    f = Rd_at_r2*ExpBessI0(r, r2, R)*r2;
+  return f;
+}
+
+
+
+
+double A_rzFGIntegrand(double r2, void * params) {
+/* Convolution integrand for either flat or gaussian beams.
+    Return the integrand for the convolution integral.
+    r2 is the r" in the formula shown in the manual.
+    When r2 is in the range of recorded array, interpolation
+    is used to evaluate the diffuse reflectance at r2.
+    Note that since the last grid elements collect all the
+    photon weight that falls beyond the grid system, we should
+    avoid using them in the convolution.
+    r" in the integration
+*/
+
+  MCMLConv * mcmlConv = (MCMLConv *) params;
+
+  double f;
+  double A_at_r2 = A_rzInterp(r2, mcmlConv);
+  double R = mcmlConv->beam.R;
+  double r = mcmlConv->convVar.r;
+  Node * tree = mcmlConv->convVar.tree;
+  Node * link = Node::SearchNode(tree, r2);
+
+  if (link != nullptr)        // f in tree
+    f = link->y;
+  else {
+    if (mcmlConv->beam.type == Beam::FLAT)
+      f = ITheta(r, r2, R);
+    else       // Gaussian
+      f = ExpBessI0(r, r2, R);
+      Node::InsertNode(tree, r2, f);
+  }
+  f *= A_at_r2*r2;
+  return f;
+}
+
+
+
+double Tt_raFGIntegrand(double r2, void * params) {
+/* Convolution integrand for either flat or gaussian beams.
+    See comments for A_rzFGIntegrand().
+    r" in the integration.
+*/
+
+  MCMLConv * mcmlConv = (MCMLConv *) params;
+
+  double f;
+  double ** TT_ra = mcmlConv->mcmlModel.Tt_ra;
+  double Tt_at_r2 = RT_raInterp(r2, TT_ra, mcmlConv);
+  double R = mcmlConv->beam.R;
+  double r = mcmlConv->convVar.r;
+  Node * tree = mcmlConv->convVar.tree;
+  Node * link = Node::SearchNode(tree, r2);
+  
+  if (link != nullptr)        // f in tree
+    f = link->y;
+  else {
+    if (mcmlConv->beam.type == Beam::FLAT)
+      f = ITheta(r, r2, R);
+    else	       // Gaussian
+      f = ExpBessI0(r, r2, R);
+    Node::InsertNode(tree, r2, f);
+  }
+  f *= Tt_at_r2*r2;
+  return f;
+}
+
+
+
+double Tt_rFGIntegrand(double r2, void * params) {
+/* Convolution integrand for either flat or gaussian beams.
+    See comments for A_rzFGIntegrand().
+    r" in the integration
+*/
+  MCMLConv * mcmlConv = (MCMLConv *) params;
+
+  double f;
+  double * TT_r = mcmlConv->mcmlModel.Tt_r;
+  double Tt_at_r2 = RT_rInterp(r2, TT_r, mcmlConv);
+  double R = mcmlConv->beam.R;
+  double r = mcmlConv->convVar.r;
+
+  if (mcmlConv->beam.type == Beam::FLAT)
+    f = Tt_at_r2*ITheta(r, r2, R)*r2;
+  else	       // Gaussian
+    f = Tt_at_r2*ExpBessI0(r, r2, R)*r2;
+  return f;
+}
 
 
 
