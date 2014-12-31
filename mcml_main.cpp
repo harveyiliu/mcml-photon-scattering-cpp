@@ -47,16 +47,19 @@ int main(int argc, char * argv[])
   model.SumScaleResult();
   
   cout << "\n" << "numPhotons: " << model.numPhotons << "\n";
-  cout << "Rsp: " << model.Rsp << "\n";
-  cout << "Rd: " << model.Rd << "\n";
-  cout << "A: " << model.A << "\n";
-  cout << "Tt: " << model.Tt << endl;
+  cout << "Specular reflection Rsp (%): " << 100*model.Rsp << "\n";
+  cout << "Diffused reflection Rd (%): " << 100*model.Rd << "\n";
+  cout << "Absorption A (%): " << 100*model.A << "\n";
+  cout << "Transmission Tt (%): " << 100*model.Tt << endl;
 
   MCMLConv conv;
   conv.SelectMCMLConv(model, convName);
   conv.RunConv();
+  double halfMaxDepth = conv.CenterHalfMaxDepth();
+  double halfMaxWidth = conv.SurfaceHalfMaxWidth();
 
-  cout << "Convolution complete." << endl;
+  cout << "\n" << "Center half max depth (mm): " << 10*halfMaxDepth << "\n";
+  cout << "Surface half max width (mm): " << 10*halfMaxWidth << endl;
 
   conv.FreeMCMLConv();
   return(0);

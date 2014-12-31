@@ -548,6 +548,20 @@ void MCMLModel::ScaleA () {
 
 
 
+double MCMLModel::GetMuaAtIz (short iz) {
+  short i = 1;       // index to layer
+  short numLayers = layerObj.numLayers;
+
+  while ((iz + 0.5)*dz >= layerObj.layerZ[1][i] && i < numLayers)
+    i += 1;
+  double mua = layerObj.layer[i].mua;
+  
+  return mua;
+}
+
+
+
+
 void Photon::Reset (MCMLModel * model) {
   x = 0.0;
   y = 0.0;

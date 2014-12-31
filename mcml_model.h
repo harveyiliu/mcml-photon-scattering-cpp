@@ -93,6 +93,8 @@ Methods:
 class Medium {
   friend class LayerStruct;
   friend class Photon;
+  friend class ModelInput;
+  friend class MCMLModel;
   private:
     double n;			/* refractive index of a layer. */
     double mua;	    /* absorption coefficient. [1/cm] */
@@ -294,6 +296,7 @@ class MCMLModel : public ModelInput {
     void FreeMCMLModel ();
     void DoOneRun (long numPhotons);
     void SumScaleResult();
+    double GetMuaAtIz(short iz);
 };
 
 

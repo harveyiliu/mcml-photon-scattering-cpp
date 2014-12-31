@@ -225,7 +225,8 @@ class MCMLConv : public ConvInput {
     void ConvRd_r ();
     void ConvA_rz ();
     void ConvTt_ra ();
-    void ConvTt_r ();    
+    void ConvTt_r ();
+    void ConvA2F();    
   
   public:
     double ** Rd_rac;
@@ -233,12 +234,15 @@ class MCMLConv : public ConvInput {
     double ** A_rzc;
     double ** Tt_rac;
     double * Tt_rc;
+    double ** F_rzc;
 
     MCMLConv () : Rd_rac (nullptr), Rd_rc (nullptr), A_rzc (nullptr), 
-      Tt_rac (nullptr), Tt_rc (nullptr) {};
+      Tt_rac (nullptr), Tt_rc (nullptr), F_rzc (nullptr) {};
     void SelectMCMLConv (MCMLModel mcmlModelSet, std::string convName);
     void FreeMCMLConv ();
-    void RunConv ();      
+    void RunConv ();
+    double CenterHalfMaxDepth ();
+    double SurfaceHalfMaxWidth ();      
 };
 
 

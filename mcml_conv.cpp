@@ -219,6 +219,12 @@ void MCMLConv::SelectMCMLConv (MCMLModel mcmlModelSet, std::string convName) {
   Tt_rc = new double [nrc];
   std::fill (Tt_rc, Tt_rc+nrc-1, 0);
 
+  F_rzc = new double * [nrc];
+  for (int i = 0; i < nrc; i++) {
+    F_rzc[i] = new double [nz];
+    std::fill (F_rzc[i], F_rzc[i]+nz-1, 0);  
+  }
+
 }
 
 
@@ -243,7 +249,12 @@ void MCMLConv::FreeMCMLConv () {
   Tt_rac = nullptr;
   if (Tt_rc != nullptr) 
     delete[] Tt_rc;
-  Tt_rc = nullptr;  
+  Tt_rc = nullptr;
+  if (F_rzc != nullptr) {
+    for (int i = 0; i < nrc; i++) 
+      delete[] F_rzc[i];
+  }
+  F_rzc = nullptr;  
   this->FreeConvInput();  
 }
 
@@ -256,6 +267,56 @@ void MCMLConv::RunConv () {
   ConvA_rz();
   ConvTt_ra();
   ConvTt_r();
+  ConvA2F();
+}
+
+
+void MCMLConv::ConvA2F () {
+  short irc, iz;
+  short nz = mcmlModel.nz;
+  double mua;
+  
+  for (irc = 0; irc < nrc; irc++) {
+    for (iz = 0; iz < nz; iz++) {
+      mua = mcmlModel.GetMuaAtIz(iz);
+      if (mua > 0.0)
+        F_rzc[irc][iz] = A_rzc[irc][iz]/mua;     // F in J/cm2
+    }
+  }
+}
+
+
+
+
+
+double MCMLConv::CenterHalfMaxDepth () {
+  short iz;
+  short nz = mcmlModel.nz;
+  double dz = mcmlModel.dz;
+  double depth = 0;
+
+  for (iz = 0; iz < nz; iz++) {
+    if (F_rzc[0][iz] <= 0.5*F_rzc[0][0]) {
+      depth = (iz + 0.5)*dz;
+      break;
+    }
+  }
+  return depth;
+}
+
+
+
+double MCMLConv::SurfaceHalfMaxWidth () {
+  short irc;
+  double width = 0;
+
+  for (irc = 0; irc < nrc; irc++) {
+    if (F_rzc[irc][0] <= 0.5*F_rzc[0][0]) {
+      width = 2*(irc + 0.5)*drc;
+      break;
+    }
+  }
+  return width;
 }
 
 
@@ -625,7 +686,7 @@ double IntegrateQuad(double (*func) (double x, void * params),
           double a, double b, MCMLConv * mcmlConv) {
 
   gsl_integration_workspace * workPtr 
-      = gsl_integration_workspace_alloc (1000);
+      = gsl_integration_workspace_alloc (2000);
 
   double absError = 1.0e-5;   // to avoid round-off problems
   double relError = 1.0e-5;   // the result will usually be much better
@@ -638,7 +699,7 @@ double IntegrateQuad(double (*func) (double x, void * params),
   integralFunction.function = func;
   integralFunction.params = paramsPtr;
 
-  gsl_integration_qags (&integralFunction, a, b, absError, relError, 1000,
+  gsl_integration_qags (&integralFunction, a, b, absError, relError, 2000,
         workPtr, &result, &error);
 
   gsl_integration_workspace_free (workPtr);
