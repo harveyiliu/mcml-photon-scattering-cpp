@@ -79,12 +79,6 @@ class Beam {
     double P;       // total power. [J or W]
     double R;       // radius. [cm]
 
-    enum BeamName {
-        TRIA_HRL,
-        TRIA_FAN
-    };
-    
-    void SelectBeam (Beam::BeamName beamName = Beam::TRIA_HRL);
 };
 
 
@@ -182,13 +176,8 @@ class ConvInput {
     MCMLModel mcmlModel;
     ConvVar convVar;
     
-    enum ConvName {
-        TRIA_HRL,
-        TRIA_FAN
-    };
-    
     void SelectConvInput (MCMLModel mcmlModelSet, 
-          ConvInput::ConvName convName = ConvInput::TRIA_HRL);
+          Beam::BeamType beamType = Beam::FLAT, double P = 1.0, double R = 0);
     void FreeConvInput();       
 };     
 
@@ -238,7 +227,8 @@ class MCMLConv : public ConvInput {
 
     MCMLConv () : Rd_rac (nullptr), Rd_rc (nullptr), A_rzc (nullptr), 
       Tt_rac (nullptr), Tt_rc (nullptr), F_rzc (nullptr) {};
-    void SelectMCMLConv (MCMLModel mcmlModelSet, std::string convName);
+    void SelectMCMLConv (MCMLModel mcmlModelSet, std::string beamType,
+          double P, double R);
     void FreeMCMLConv ();
     void RunConv ();
     double CenterHalfMaxDepth ();

@@ -7,6 +7,7 @@
 #include "mcml_conv.h"
 
 double ITheta(double r, double r2, double R);
+double ModifiedBessI0(double x);
 double ExpBessI0(double r, double r2, double R);
 double RT_raInterp(double r2, double ** RT_ra, MCMLConv * mcmlConv);
 double RT_rInterp(double r2, double * RT_r, MCMLConv * mcmlConv);
@@ -24,38 +25,6 @@ double GaussIntegration(double (*func) (double x, void * params),
           MCMLConv * mcmlConv);
 
 
-void Beam::SelectBeam (Beam::BeamName beamName) {
-/* Beam class - incident light beam class
-        Parameters to describe a photon beam.
-        Pencil: infinitely narrow beam. This is default for the
-            beam from the mcml output.
-        Flat:	Flat beam with radius R.
-        Gaussian:	Gaussian with 1/e2 radius R.
-        Others: general beam described by points with interpolation.
-        Class instance variables:
-            type - incident beam type, FLAT or GAUSSIAN
-            P - total beam power/energy [W or J]
-            R - beam radius, defined as 1/e^2 for Gaussian beam [cm]
-        Methods:
-            
-*/  
-  switch (beamName) {
-    case Beam::TRIA_HRL:
-      type = Beam::FLAT;
-      P = 20;     // total power. [J or W]
-      R = 0.5;    // radius. [cm]
-      break;
-    case Beam::TRIA_FAN:
-      type = Beam::GAUSSIAN;
-      P = 0.012;
-      R = 0.025;
-      break;
-    default:
-      type = Beam::FLAT;
-      P = 20;
-      R = 0.5;
-  }
-}
 
 
 
@@ -118,7 +87,7 @@ void Node::FreeTree(Node * tree) {
 
 
 void ConvInput::SelectConvInput (MCMLModel mcmlModelSet, 
-      ConvInput::ConvName convName) {
+      Beam::BeamType beamType, double P, double R) {
 /* ConvInput class - beam convolution input class
         Input parameters for each independent run.
         z and r are for the cylindrical coordinate system. [cm]
@@ -149,23 +118,22 @@ void ConvInput::SelectConvInput (MCMLModel mcmlModelSet,
             
 */  
   this->FreeConvInput();    // free previously set array members if needed
-  switch (convName) {
-    case ConvInput::TRIA_HRL:    
-      beam.SelectBeam(Beam::TRIA_HRL);    // incident beam of finite size
-      drc = 0.005;        // convolution r grid separation.[cm]
-      nrc = 150;          // convolution array range 0..nrc-1.  
+  switch (beamType) {
+    case Beam::FLAT:    
+      beam.type = Beam::FLAT;    // incident beam of finite size  
       break; 
-    case ConvInput::TRIA_FAN:
-      beam.SelectBeam(Beam::TRIA_FAN);
-      drc = 0.001;
-      nrc = 100;
+    case Beam::GAUSSIAN:
+      beam.type = Beam::GAUSSIAN;
       break;
     default:
-      beam.SelectBeam(Beam::TRIA_HRL);
-      drc = 0.005;
-      nrc = 150;      
+      beam.type = Beam::FLAT;      
   }
   mcmlModel = mcmlModelSet;
+  beam.P = P;
+  beam.R = std::max<double>(R, 1e-5);       // minimum radius required
+  double minR = 1.2*(R + mcmlModel.nr*mcmlModel.dr);
+  drc = std::max<double>(mcmlModel.dr, minR/200);
+  nrc = (short) (minR/drc);
 }
 
 
@@ -181,16 +149,17 @@ void ConvInput::FreeConvInput () {
 
 
 
-void MCMLConv::SelectMCMLConv (MCMLModel mcmlModelSet, std::string convName) {
+void MCMLConv::SelectMCMLConv (MCMLModel mcmlModelSet, std::string beamType,
+        double P, double R) {
   
   this->FreeMCMLConv();
 
-  if (convName.compare("TRIA_HRL") == 0)
-    this->SelectConvInput (mcmlModelSet, ConvInput::TRIA_HRL);
-  else if (convName.compare("TRIA_FAN") == 0)
-    this->SelectConvInput (mcmlModelSet, ConvInput::TRIA_FAN);
+  if (beamType.compare("FLAT") == 0)
+    this->SelectConvInput (mcmlModelSet, Beam::FLAT, P, R);
+  else if (beamType.compare("GAUSSIAN") == 0)
+    this->SelectConvInput (mcmlModelSet, Beam::GAUSSIAN, P, R);
   else
-    this->SelectConvInput (mcmlModelSet, ConvInput::TRIA_HRL);
+    this->SelectConvInput (mcmlModelSet, Beam::FLAT, P, R);
    
   short na = mcmlModel.na;
   short nz = mcmlModel.nz;
@@ -529,12 +498,37 @@ double ITheta(double r, double r2, double R) {
 
 
 
+double ModifiedBessI0(double x) {
+/* Modified Bessel function exp(-x) I0(x), for x >=0.
+    We modified from the original bessi0(). Instead of
+    I0(x) itself, it returns I0(x) exp(-x).
+*/
+  double ax, y, ans;
+
+  ax = fabs(x);
+  if (ax < 3.75) {
+    y = x/3.75;
+    y *= y;
+    ans = exp(-ax)*(1.0 + y*(3.5156229 + y*(3.0899424 + y*(1.2067492
+            + y*(0.2659732 + y*(0.360768e-1 + y*0.45813e-2))))));
+  } else {
+    y = 3.75/ax;
+    ans = (1/sqrt(ax))*(0.39894228 + y*(0.1328592e-1
+            + y*(0.225319e-2 + y*(-0.157565e-2 + y*(0.916281e-2
+            + y*(-0.2057706e-1 + y*(0.2635537e-1 + y*(-0.1647633e-1
+            + y * 0.392377e-2))))))));
+  }
+  return ans;
+}
+
+
+
 
 double ExpBessI0(double r, double r2, double R) {
     double _RR = 1/(R*R);
     double x = 4*r*r2*_RR;
     double y = 2*(r2*r2 + r*r)*_RR;
-    double expbess = exp(-y + x)*gsl_sf_bessel_j0 (x);
+    double expbess = exp(-y + x)*ModifiedBessI0(x);
     return expbess;
 }
 
@@ -686,7 +680,7 @@ double IntegrateQuad(double (*func) (double x, void * params),
           double a, double b, MCMLConv * mcmlConv) {
 
   gsl_integration_workspace * workPtr 
-      = gsl_integration_workspace_alloc (2000);
+      = gsl_integration_workspace_alloc (2500);
 
   double absError = 1.0e-5;   // to avoid round-off problems
   double relError = 1.0e-5;   // the result will usually be much better
@@ -699,7 +693,7 @@ double IntegrateQuad(double (*func) (double x, void * params),
   integralFunction.function = func;
   integralFunction.params = paramsPtr;
 
-  gsl_integration_qags (&integralFunction, a, b, absError, relError, 2000,
+  gsl_integration_qags (&integralFunction, a, b, absError, relError, 2500,
         workPtr, &result, &error);
 
   gsl_integration_workspace_free (workPtr);
